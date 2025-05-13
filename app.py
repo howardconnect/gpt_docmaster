@@ -48,11 +48,16 @@ def stream():
     """
     Server-Sent Events endpoint for live updates.
     """
+    # Log that a client has connected
+    print("📡 SSE client connected at /stream")
+
     def event_stream():
         while True:
             msg = event_queue.get()          # blocks until an event is pushed
             yield f"data: {json.dumps(msg)}\n\n"
+
     return Response(event_stream(), mimetype="text/event-stream")
+
 
 if __name__ == "__main__":
     # debug + auto-reload enabled

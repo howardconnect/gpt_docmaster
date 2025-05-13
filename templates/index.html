@@ -15,82 +15,20 @@
       --btn-bg: #007bff;
       --btn-color: #fff;
     }
-    body {
-      font-family: Arial, sans-serif;
-      margin: 2rem;
-      color: var(--text-main);
-    }
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 1.5rem;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 1.8rem;
-    }
-    #watchStatus {
-      margin-left: 1rem;
-      font-style: italic;
-      color: #666;
-    }
-    button {
-      padding: 0.5rem 1rem;
-      background: var(--btn-bg);
-      color: var(--btn-color);
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    button:disabled {
-      opacity: 0.6;
-      cursor: default;
-    }
-    #status {
-      margin-bottom: 1rem;
-      font-style: italic;
-    }
-    .doc-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: var(--card-gap);
-    }
-    .doc-list.list-view {
-      display: block;
-    }
-    .doc-card {
-      background: var(--bg-light);
-      border: 1px solid var(--card-border);
-      border-radius: var(--card-radius);
-      padding: var(--card-padding);
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .doc-list.list-view .doc-card {
-      flex-direction: row;
-      align-items: center;
-      margin-bottom: var(--card-gap);
-      width: auto;
-    }
-    .doc-card img {
-      max-width: 100%;
-      height: auto;
-      border-radius: 4px;
-      margin-bottom: 0.5rem;
-    }
-    .doc-list.list-view .doc-card img {
-      width: 60px;
-      height: 60px;
-      margin-right: 1rem;
-      margin-bottom: 0;
-    }
-    .doc-filename {
-      font-size: 0.95rem;
-      word-break: break-all;
-    }
+    body { font-family: Arial, sans-serif; margin: 2rem; color: var(--text-main); }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+    header h1 { margin: 0; font-size: 1.8rem; }
+    #watchStatus { margin-left: 1rem; font-style: italic; color: #666; }
+    button { padding: 0.5rem 1rem; background: var(--btn-bg); color: var(--btn-color); border: none; border-radius: 4px; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: default; }
+    #status { margin-bottom: 1rem; font-style: italic; }
+    .doc-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--card-gap); }
+    .doc-list.list-view { display: block; }
+    .doc-card { background: var(--bg-light); border: 1px solid var(--card-border); border-radius: var(--card-radius); padding: var(--card-padding); text-align: center; display: flex; flex-direction: column; align-items: center; }
+    .doc-list.list-view .doc-card { flex-direction: row; align-items: center; margin-bottom: var(--card-gap); width: auto; }
+    .doc-card img { max-width: 100%; height: auto; border-radius: 4px; margin-bottom: 0.5rem; }
+    .doc-list.list-view .doc-card img { width: 60px; height: 60px; margin-right: 1rem; margin-bottom: 0; }
+    .doc-filename { font-size: 0.95rem; word-break: break-all; }
   </style>
 </head>
 <body>
@@ -109,6 +47,7 @@
   <div class="doc-list" id="docList"></div>
 
   <script>
+    console.log("📡 script loaded");
     const docListEl = document.getElementById('docList');
     const statusEl = document.getElementById('status');
     const gridBtn = document.getElementById('gridBtn');
@@ -130,18 +69,15 @@
       const card = document.createElement('div');
       card.className = 'doc-card';
       card.dataset.filename = d.filename;
-
       if (d.thumbnail) {
         const img = document.createElement('img');
         img.src = d.thumbnail;
         card.appendChild(img);
       }
-
       const name = document.createElement('div');
       name.className = 'doc-filename';
       name.textContent = d.filename;
       card.appendChild(name);
-
       docListEl.appendChild(card);
     }
 
@@ -149,7 +85,6 @@
       try {
         const res = await fetch('/api/documents');
         const docs = await res.json();
-
         statusEl.textContent = docs.length ? '' : 'No documents found.';
         docs.forEach(addCard);
       } catch (err) {
@@ -160,21 +95,26 @@
 
     loadDocs();
 
-    // ----- SSE for live updates -----
+    // --- SSE live updates ---
+    console.log("📡 attempting to connect SSE");
     const evtSource = new EventSource('/stream');
 
     evtSource.onopen = () => {
+      console.log("📡 SSE open");
       watchStatus.textContent = 'Watching folder';
     };
-    evtSource.onerror = () => {
+    evtSource.onerror = err => {
+      console.error("📡 SSE error", err);
       watchStatus.textContent = 'Watcher disconnected';
       evtSource.close();
     };
     evtSource.onmessage = e => {
       const msg = JSON.parse(e.data);
       if (msg.action === 'created') {
+        console.log("📡 SSE event created", msg);
         addCard(msg);
       } else if (msg.action === 'deleted') {
+        console.log("📡 SSE event deleted", msg);
         document.querySelectorAll(`.doc-card[data-filename="${msg.filename}"]`)
                 .forEach(el => el.remove());
       }
