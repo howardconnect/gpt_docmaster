@@ -4,9 +4,9 @@
 ## 🧭 `BUILD_PLAN.md`
 
 ```markdown
-# 🏗 GPT Gazer 2.0 – Build Plan
+# 🏗 GPT DocMaster 1.0 – Build Plan
 
-This file defines the structured roadmap to build GPT Gazer 2.0 from the ground up, in modular phases. Each section can be completed independently and tested incrementally.
+This file defines the structured roadmap to build GPT DocMaster from the ground up, in modular phases. Each section can be completed independently and tested incrementally.
 
 ---
 
