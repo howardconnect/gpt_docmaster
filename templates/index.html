@@ -43,6 +43,123 @@
     </div>
   </header>
 
+  <input
+  type="text"
+  id="searchInput"
+  placeholder="🔍 Search documents..."
+  style="width:100%; padding:0.5rem; margin-bottom:1rem; font-size:1rem; border:1px solid #ccc; border-radius:4px;"
+/>
+  <!-- just above your existing status div -->
+  <input
+    type="text"
+    id="searchInput"
+    placeholder="🔍 Search documents..."
+    style="width:100%; padding:0.5rem; margin-bottom:1rem; font-size:1rem; border:1px solid #ccc; border-radius:4px;"
+  />
+
+  <div id="status">Loading documents…</div>
+  <div class="doc-list" id="docList"></div>
+
+  <script>
+    console.log("📡 script loaded");
+    const docListEl = document.getElementById('docList');
+    const statusEl  = document.getElementById('status');
+    const gridBtn   = document.getElementById('gridBtn');
+    const listBtn   = document.getElementById('listBtn');
+    const watchStatus = document.getElementById('watchStatus');
+    const searchInput = document.getElementById('searchInput');
+
+    gridBtn.addEventListener('click', () => {
+      docListEl.classList.remove('list-view');
+      gridBtn.disabled = true;
+      listBtn.disabled = false;
+    });
+    listBtn.addEventListener('click', () => {
+      docListEl.classList.add('list-view');
+      gridBtn.disabled = false;
+      listBtn.disabled = true;
+    });
+
+    function addCard(d) {
+      const card = document.createElement('div');
+      card.className = 'doc-card';
+      card.dataset.filename = d.filename;
+
+      if (d.thumbnail) {
+        const img = document.createElement('img');
+        img.src = d.thumbnail;
+        card.appendChild(img);
+      }
+
+      const name = document.createElement('div');
+      name.className = 'doc-filename';
+      name.textContent = d.filename;
+      card.appendChild(name);
+
+      docListEl.appendChild(card);
+    }
+
+    async function loadDocs(query = '') {
+      statusEl.textContent = 'Loading documents…';
+      docListEl.innerHTML = '';
+      try {
+        const url = query
+          ? `/api/documents?q=${encodeURIComponent(query)}`
+          : '/api/documents';
+        const res = await fetch(url);
+        const docs = await res.json();
+        if (!docs.length) {
+          statusEl.textContent = query
+            ? 'No documents match your search.'
+            : 'No documents found.';
+          return;
+        }
+        statusEl.textContent = '';
+        docs.forEach(addCard);
+      } catch (err) {
+        statusEl.textContent = 'Error loading documents.';
+        console.error(err);
+      }
+    }
+
+    // wire search box
+    searchInput.addEventListener('input', e => {
+      loadDocs(e.target.value.trim());
+    });
+
+    // initial load
+    loadDocs();
+
+    // SSE live updates remain unchanged…
+    console.log("📡 attempting to connect SSE");
+    const evtSource = new EventSource('/stream');
+    evtSource.onopen = () => {
+      console.log("📡 SSE open");
+      watchStatus.textContent = 'Watching folder';
+    };
+    evtSource.onerror = err => {
+      console.error("📡 SSE error", err);
+      watchStatus.textContent = 'Watcher disconnected';
+      evtSource.close();
+    };
+    evtSource.onmessage = e => {
+      const msg = JSON.parse(e.data);
+      if (msg.action === 'created') {
+        console.log("📡 SSE event created", msg);
+        // if current query is empty or matches this filename, re-load
+        if (!searchInput.value.trim() ||
+            msg.filename.toLowerCase().includes(searchInput.value.trim().toLowerCase())
+        ) {
+          loadDocs(searchInput.value.trim());
+        }
+      } else if (msg.action === 'deleted') {
+        console.log("📡 SSE event deleted", msg);
+        // safe to just re-load current list
+        loadDocs(searchInput.value.trim());
+      }
+    };
+  </script>
+
   <div id="status">Loading documents…</div>
   <div class="doc-list" id="docList"></div>
 

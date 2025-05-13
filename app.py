@@ -2,7 +2,7 @@
 
 import os
 import json
-from flask import Flask, jsonify, render_template, Response
+from flask import Flask, jsonify, render_template, Response, request
 from dotenv import load_dotenv
 
 from database import SessionLocal, Document
@@ -19,9 +19,19 @@ def index():
 
 @app.route("/api/documents", methods=["GET"])
 def list_documents():
+    """
+    Return a JSON list of indexed documents, optionally filtered
+    by a query string `?q=term` that matches filenames (case-insensitive).
+    """
+    q = request.args.get("q", "").strip()
     session = SessionLocal()
     try:
-        docs = session.query(Document).all()
+        query = session.query(Document)
+        if q:
+            # Case-insensitive LIKE
+            query = query.filter(Document.filename.ilike(f"%{q}%"))
+        docs = query.all()
+
         payload = []
         for d in docs:
             name, _ = os.path.splitext(d.filename)
@@ -30,6 +40,7 @@ def list_documents():
                 candidate = os.path.join(app.static_folder, "thumbnails", f"{name}.png")
                 if os.path.exists(candidate):
                     thumb_url = f"/static/thumbnails/{name}.png"
+
             payload.append({
                 "id": d.id,
                 "filename": d.filename,
@@ -48,7 +59,6 @@ def stream():
     """
     Server-Sent Events endpoint for live updates.
     """
-    # Log that a client has connected
     print("📡 SSE client connected at /stream")
 
     def event_stream():
@@ -57,7 +67,6 @@ def stream():
             yield f"data: {json.dumps(msg)}\n\n"
 
     return Response(event_stream(), mimetype="text/event-stream")
-
 
 if __name__ == "__main__":
     # debug + auto-reload enabled
