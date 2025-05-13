@@ -1,0 +1,6 @@
+Flask==2.2.5
+watchdog==2.1.9
+SQLAlchemy==1.4.46
+python-dotenv==0.21.0
+pymupdf==1.24.1
+Pillow==10.0.0
