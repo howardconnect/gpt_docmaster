@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GPT DocMaster</title>
-  <!-- Your custom CSS -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
-  <!-- Font Awesome Free -->
+
+  <!-- Font Awesome Free (CDN) -->
   <link
     rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    crossorigin="anonymous"
   />
+  <!-- Your app’s CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 </head>
 <body>
   <header>
@@ -35,135 +35,136 @@
   <div class="doc-list" id="docList"></div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const docListEl   = document.getElementById("docList");
-      const statusEl    = document.getElementById("status");
-      const gridBtn     = document.getElementById("gridBtn");
-      const listBtn     = document.getElementById("listBtn");
-      const watchStatus = document.getElementById("watchStatus");
-      const searchInput = document.getElementById("searchInput");
+  document.addEventListener("DOMContentLoaded", () => {
+    const docListEl   = document.getElementById("docList");
+    const statusEl    = document.getElementById("status");
+    const gridBtn     = document.getElementById("gridBtn");
+    const listBtn     = document.getElementById("listBtn");
+    const watchStatus = document.getElementById("watchStatus");
+    const searchInput = document.getElementById("searchInput");
 
-      // Toggle views
-      gridBtn.addEventListener("click", () => {
-        docListEl.classList.remove("list-view");
-        gridBtn.disabled = true;
-        listBtn.disabled = false;
-      });
-      listBtn.addEventListener("click", () => {
-        docListEl.classList.add("list-view");
-        gridBtn.disabled = false;
-        listBtn.disabled = true;
-      });
-
-      // Render a document card
-      function addCard(doc) {
-        const card = document.createElement("div");
-        card.className = "doc-card";
-
-        // Determine file extension
-        const ext = doc.filename.split('.').pop().toLowerCase();
-
-        // Show icon for TXT/DOCX, real thumbnail for others
-        if (ext === 'txt' || ext === 'docx') {
-          const icon = document.createElement("i");
-          icon.className = ext === 'txt'
-            ? "fas fa-file-lines doc-icon"
-            : "fas fa-file-word doc-icon";
-          card.appendChild(icon);
-
-        } else if (doc.thumbnail_url) {
-          const img = document.createElement("img");
-          img.src = doc.thumbnail_url;
-          img.alt = doc.filename;
-          card.appendChild(img);
-        } else {
-          const placeholder = document.createElement("div");
-          placeholder.textContent = "(no thumbnail)";
-          placeholder.style.height = "150px";
-          placeholder.style.display = "flex";
-          placeholder.style.alignItems = "center";
-          placeholder.style.justifyContent = "center";
-          placeholder.style.color = "#666";
-          card.appendChild(placeholder);
-        }
-
-        // Title
-        const titleEl = document.createElement("div");
-        titleEl.className = "doc-title";
-        titleEl.textContent = doc.title || doc.filename;
-        card.appendChild(titleEl);
-
-        // Summary placeholder
-        const summaryEl = document.createElement("div");
-        summaryEl.className = "doc-summary";
-        summaryEl.textContent = "Summary: No summary available.";
-        card.appendChild(summaryEl);
-
-        // Metadata: uploaded, modified, size
-        const metaEl = document.createElement("div");
-        metaEl.className = "doc-meta";
-        metaEl.innerHTML = `
-          <span>Uploaded: ${new Date(doc.added_at).toLocaleString()}</span>
-          <span>Modified: ${new Date(doc.updated_at).toLocaleString()}</span>
-          <span>Size: N/A</span>
-        `;
-        card.appendChild(metaEl);
-
-        // Actions: View / Download
-        const actionsEl = document.createElement("div");
-        actionsEl.className = "doc-actions";
-        actionsEl.innerHTML = `
-          <button class="btn-view">View</button>
-          <button class="btn-download">Download</button>
-        `;
-        card.appendChild(actionsEl);
-
-        docListEl.appendChild(card);
-      }
-
-      // Load documents from API
-      async function loadDocs(q = "") {
-        statusEl.textContent = "Loading documents…";
-        docListEl.innerHTML = "";
-        try {
-          const res  = await fetch(`/api/docs?q=${encodeURIComponent(q)}`);
-          const docs = await res.json();
-          if (!docs.length) {
-            statusEl.textContent = q
-              ? "No documents match your search."
-              : "No documents found.";
-            return;
-          }
-          statusEl.textContent = "";
-          docs.forEach(addCard);
-        } catch (err) {
-          statusEl.textContent = "Error loading documents.";
-          console.error(err);
-        }
-      }
-
-      // Search box wiring
-      searchInput.addEventListener("input", e => {
-        loadDocs(e.target.value.trim());
-      });
-
-      // Initial fetch
-      loadDocs();
-
-      // SSE live updates
-      const evt = new EventSource("/stream");
-      evt.onopen  = () => watchStatus.textContent = "Watching folder";
-      evt.onerror = () => {
-        watchStatus.textContent = "Watcher disconnected";
-        evt.close();
-      };
-      evt.onmessage = e => {
-        const msg = JSON.parse(e.data);
-        if (msg.action === "created" || msg.action === "deleted") {
-          loadDocs(searchInput.value.trim());
-        }
-      };
+    // Grid/List toggles
+    gridBtn.addEventListener("click", () => {
+      docListEl.classList.remove("list-view");
+      gridBtn.disabled = true;
+      listBtn.disabled = false;
     });
+    listBtn.addEventListener("click", () => {
+      docListEl.classList.add("list-view");
+      gridBtn.disabled = false;
+      listBtn.disabled = true;
+    });
+
+    // Render one card
+    function addCard(doc) {
+      const card = document.createElement("div");
+      card.className = "doc-card";
+
+      // Thumbnail or icon
+      const ext = doc.filename.split('.').pop().toLowerCase();
+      let thumbEl;
+      if (ext === 'txt' || ext === 'docx') {
+        thumbEl = document.createElement("i");
+        thumbEl.className = ext === 'txt'
+          ? "fas fa-file-lines doc-icon"
+          : "fas fa-file-word doc-icon";
+      } else if (doc.thumbnail_url) {
+        thumbEl = document.createElement("img");
+        thumbEl.src = doc.thumbnail_url;
+        thumbEl.alt = doc.filename;
+      } else if (ext === 'pdf') {
+        thumbEl = document.createElement("i");
+        thumbEl.className = "fas fa-file-pdf doc-icon";
+      } else {
+        thumbEl = document.createElement("i");
+        thumbEl.className = "fas fa-file doc-icon";
+      }
+      card.appendChild(thumbEl);
+
+      // Body wrapper
+      const body = document.createElement("div");
+      body.className = "doc-body";
+
+      // Title
+      const title = document.createElement("h4");
+      title.className = "doc-title";
+      title.textContent = doc.title || doc.filename;
+      title.title = doc.filename;
+      body.appendChild(title);
+
+      // Summary
+      const summary = document.createElement("p");
+      summary.className = "doc-summary";
+      summary.textContent = doc.summary || "No summary available.";
+      body.appendChild(summary);
+
+      // Metadata
+      const meta = document.createElement("div");
+      meta.className = "doc-meta";
+      meta.innerHTML = `
+        <span>📤 ${new Date(doc.added_at).toLocaleString()}</span>
+        <span>✏️ ${new Date(doc.updated_at).toLocaleString()}</span>
+        <span>💾 ${doc.size_readable || "N/A"}</span>
+      `;
+      body.appendChild(meta);
+
+      // Actions
+      const actions = document.createElement("div");
+      actions.className = "doc-actions";
+      actions.innerHTML = `
+        <button class="btn-view">View</button>
+        <button class="btn-download">Download</button>
+      `;
+      body.appendChild(actions);
+
+      card.appendChild(body);
+      docListEl.appendChild(card);
+
+      // Wire up buttons
+      actions.querySelector(".btn-view")
+        .addEventListener("click", () =>
+          window.open(`/static/docs/${encodeURIComponent(doc.filename)}`, "_blank")
+        );
+      actions.querySelector(".btn-download")
+        .addEventListener("click", () =>
+          location.href = `/static/docs/${encodeURIComponent(doc.filename)}`
+        );
+    }
+
+    // Fetch and display
+    async function loadDocs(q = "") {
+      statusEl.textContent = "Loading documents…";
+      docListEl.innerHTML = "";
+      try {
+        const res  = await fetch(`/api/docs?q=${encodeURIComponent(q)}`);
+        const docs = await res.json();
+        if (!docs.length) {
+          statusEl.textContent = q ? "No matches." : "No documents.";
+          return;
+        }
+        statusEl.textContent = "";
+        docs.forEach(addCard);
+      } catch (e) {
+        statusEl.textContent = "Error loading documents.";
+        console.error(e);
+      }
+    }
+
+    // Search wiring & initial load
+    searchInput.addEventListener("input", e => loadDocs(e.target.value.trim()));
+    loadDocs();
+
+    // SSE live updates
+    const es = new EventSource("/stream");
+    es.onopen    = () => watchStatus.textContent = "Watching folder";
+    es.onerror   = () => { watchStatus.textContent = "Disconnected"; es.close(); };
+    es.onmessage = e => {
+      const msg = JSON.parse(e.data);
+      if (msg.action === "created" || msg.action === "deleted") {
+        loadDocs(searchInput.value.trim());
+      }
+    };
+  });
   </script>
 </body>
 </html>
