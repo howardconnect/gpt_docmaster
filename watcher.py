@@ -3,68 +3,97 @@
 import os
 import time
 from dotenv import load_dotenv
-import handler
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileMovedEvent
+from watchdog.observers.polling import PollingObserver as Observer
+from watchdog.events import FileSystemEventHandler
 
-# DEBUG
-print("🔧 watcher.py is starting up...")
+from handler import process_new_file, process_deleted_file, cleanup_orphans
 
-# Load environment variables
+# Load your WATCH_FOLDER from .env (fallback to this UNC path)
 load_dotenv()
-WATCH_FOLDER = os.getenv("WATCH_FOLDER")
-print(f"🔍 Loaded WATCH_FOLDER = {WATCH_FOLDER!r}")
+WATCH_FOLDER = os.getenv(
+    "WATCH_FOLDER",
+    r"\\mothership\File Cabinet\watch_folder"
+)
 
 class WatchHandler(FileSystemEventHandler):
+    """Catch all FS events and dispatch to your handler functions."""
+
+    def on_any_event(self, event):
+        # Debug-print every event so you can see what’s happening
+        print(f"EVENT: {event.event_type} — {event.src_path}")
+
     def on_created(self, event):
-        if event.is_directory:
-            return
-        print(f"🆕 File created: {event.src_path}")
-        handler.process_new_file(event.src_path)
+        if not event.is_directory:
+            print(f"➕ Created: {event.src_path}")
+            process_new_file(event.src_path)
+
+    def on_moved(self, event):
+        if not event.is_directory:
+            dest = getattr(event, "dest_path", event.src_path)
+            print(f"🔀 Moved: {event.src_path} → {dest}")
+            process_new_file(dest)
+
+    def on_modified(self, event):
+        if not event.is_directory:
+            print(f"✏️ Modified: {event.src_path}")
+            process_new_file(event.src_path)
 
     def on_deleted(self, event):
-        if event.is_directory:
-            return
-        print(f"❌ File deleted: {event.src_path}")
-        handler.process_deleted_file(event.src_path)
+        if not event.is_directory:
+            print(f"➖ Deleted: {event.src_path}")
+            process_deleted_file(event.src_path)
 
-    def on_moved(self, event: FileMovedEvent):
-        if event.is_directory:
-            return
-        src, dest = event.src_path, event.dest_path
-        if src.startswith(WATCH_FOLDER) and not dest.startswith(WATCH_FOLDER):
-            print(f"🔀 File moved out: {src}")
-            handler.process_deleted_file(src)
-        elif not src.startswith(WATCH_FOLDER) and dest.startswith(WATCH_FOLDER):
-            print(f"🔀 File moved in: {dest}")
-            handler.process_new_file(dest)
 
-if __name__ == "__main__":
-    if not WATCH_FOLDER:
-        print("⚠️  ERROR: WATCH_FOLDER not set in .env! Exiting.")
-        exit(1)
-    if not os.path.isdir(WATCH_FOLDER):
-        print(f"❌ ERROR: Watch folder does not exist:\n   {WATCH_FOLDER!r}")
-        exit(1)
+def main():
+    print("🔧 watcher.py starting…")
+    print(f"🔍 WATCH_FOLDER = '{WATCH_FOLDER}'\n")
 
-    # Orphan cleanup
+    # 1) Remove stale DB entries
     print("🧹 Running orphan cleanup…")
-    from handler import cleanup_orphans
     cleanup_orphans(WATCH_FOLDER)
 
-    # Start observer
-    print(f"👀 Now watching folder: {WATCH_FOLDER}")
-    observer = Observer()
-    observer.schedule(WatchHandler(), WATCH_FOLDER, recursive=False)
-    observer.start()
+    # 2) One-time startup scan
+print("📂 Initial scan of existing files…")
+for fname in os.listdir(WATCH_FOLDER):
+        full = os.path.join(WATCH_FOLDER, fname)
+        if os.path.isfile(full):
+            print(f"  • Startup index: {fname}")
+            process_new_file(full)
 
-    try:
-        # Block forever, printing a heartbeat so you know it's alive
+    # Regenerate missing thumbnails
+print("🔄 Checking for missing thumbnails…")
+from database import SessionLocal, Document
+session = SessionLocal()
+try:
+        for doc in session.query(Document).all():
+            needs = False
+            if not doc.thumbnails:
+                needs = True
+            else:
+                latest = doc.thumbnails[-1]
+                if not os.path.exists(latest.thumbnail_path):
+                    needs = True
+            if needs:
+                print(f"  • Regenerating thumb for: {doc.filename}")
+                from handler import create_thumbnail
+                create_thumbnail(doc.id, doc.path, doc.filename)
+finally:
+        session.close()
+
+    # 3) Begin watching
+print(f"\n👀 Now watching folder for changes…\n")
+observer = Observer()
+observer.schedule(WatchHandler(), WATCH_FOLDER, recursive=False)
+observer.start()
+
+try:
         while True:
-            print("…waiting for file events…", end="\r", flush=True)
-            time.sleep(5)
-    except KeyboardInterrupt:
-        print("\n🛑 Stopping watcher")
+            time.sleep(1)
+except KeyboardInterrupt:
+        print("\n🛑 Stopping watcher…")
         observer.stop()
+observer.join()
 
-    observer.join()
+
+if __name__ == "__main__":
+    main()

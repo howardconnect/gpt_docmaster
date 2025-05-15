@@ -1,0 +1,168 @@
+/* static/style.css */
+
+:root {
+  --card-gap:      1rem;
+  --card-padding:  1rem;
+  --card-radius:   8px;
+  --card-border:   #ddd;
+  --bg-light:      #f9f9f9;
+  --text-main:     #333;
+  --btn-bg:        #007bff;
+  --btn-color:     #fff;
+}
+
+/* Base page reset */
+body {
+  font-family: Arial, sans-serif;
+  margin: 2rem;
+  color: var(--text-main);
+}
+
+/* Header */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+header h1 { margin: 0; font-size: 1.8rem; }
+#watchStatus { margin-left: 1rem; font-style: italic; color: #666; }
+
+/* Buttons */
+button {
+  padding: 0.5rem 1rem;
+  background: var(--btn-bg);
+  color: var(--btn-color);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Search & status */
+#status { margin: 1rem 0; font-style: italic; }
+#searchInput { width:100%; padding:0.5rem; margin-bottom:1rem; font-size:1rem; border:1px solid #ccc; border-radius:4px; }
+
+/* Document container */
+.doc-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--card-gap);
+  overflow: visible;
+}
+.doc-list.list-view { display: block; }
+
+/* Document cards */
+.doc-card {
+  background: var(--bg-light);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: visible;
+}
+.doc-list.list-view .doc-card {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: var(--card-gap);
+  width: auto;
+}
+
+/* Thumbnails */
+.doc-card img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  cursor: zoom-in;
+}
+
+/* Filename label */
+.doc-filename {
+  font-size: 0.95rem;
+  word-break: break-all;
+}
+
+/* Full-screen overlay */
+.thumb-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.thumb-overlay img {
+  max-width: 80vw;
+  max-height: 80vh;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  border-radius: 4px;
+}
+
+/* Make list‐view thumbnails fixed small squares */
+.doc-list.list-view .doc-card img {
+  width: 60px !important;
+  height: 60px !important;
+  object-fit: cover;
+  margin-right: 1rem;
+  margin-bottom: 0 !important;
+}
+
+/* Ensure card container still wraps its contents */
+.doc-list.list-view .doc-card {
+  align-items: center;
+}
+
+/* (optional) Add a pointer cursor on the overlay so users know they can click it */
+.thumb-overlay {
+  cursor: pointer;
+}
+
+/* Make FA icons same width as thumbnails */
+.doc-icon {
+  font-size: 4rem;
+  width: 100%;
+  text-align: center;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+/* Card text styling */
+.doc-title {
+  font-weight: bold;
+  margin: 0.5rem 0;
+}
+.doc-summary {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 0.5rem;
+}
+.doc-meta {
+  font-size: 0.8rem;
+  color: #777;
+  margin-bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+}
+.doc-actions {
+  margin-top: 0.5rem;
+}
+.doc-actions button {
+  margin-right: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  background: var(--btn-bg);
+  color: var(--btn-color);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
