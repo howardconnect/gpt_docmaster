@@ -1,116 +1,141 @@
-# 📂 GPT DocMaster – AI-Powered Document Assistant
+# 📂 GPT DocMaster
 
-**GPT DocMaster** is a self-hosted, AI-augmented document assistant. It watches any folder you choose (local or networked), automatically extracts and renames files based on their content, and presents a rich web interface for browsing, organizing, and interacting with your documents.
-
-With optional GPT integration and a powerful fallback mode, GPT DocMaster keeps working—even when offline or over quota.
+**GPT DocMaster** is a self-hosted, AI-augmented document assistant that watches a folder in real-time, indexes new files, generates thumbnails, and serves a live-updating web UI.
 
 ---
 
 ## 🚀 Features
 
-### 📡 Real-Time File Monitoring
+- **Real-time file watching**  
+  Watches a configurable `WATCH_FOLDER`, indexes new/deleted files via `watcher.py`.
 
-* Choose a **watch folder** (input) and **archive folder** (organized output)
-* Compatible with local or networked drives (NAS, SMB, etc.)
-* Auto-renames based on extracted metadata or GPT-generated titles
-* Detects and resolves duplicate content and hash conflicts
+- **Robust ingestion & thumbnails**  
+  - `handler.py` processes PDFs (PyMuPDF), images (Pillow), `.txt` and `.docx` (python-docx).  
+  - Slugifies filenames to avoid 404s on special characters.  
+  - Stores thumbnails under `static/thumbnails/`.
 
-### 🖼️ Live Web Dashboard
+- **SQLite database backend**  
+  - `database.py` defines `Document`, `Thumbnail`, and `Conflict` models via SQLAlchemy.  
+  - `init_db()` bootstraps your tables.
 
-* Card, list, or grid views
-* Auto-refreshing display as files are added or removed
-* Drag-and-drop uploads directly into the watch folder
-* Single search box with server-side filtering (`?q=`)
+- **Flask web UI**  
+  - `app.py` serves:
+    - `/` → `templates/index.html`  
+    - `/api/docs?q=…` → JSON list of documents (with metadata & thumbnail URLs)  
+    - `/stream` → Server-Sent Events for live create/delete notifications  
+  - **Grid / List** toggle, **live search**, **View/Download** buttons.
 
-### 🔍 Document Search & Filters
-
-* Filter by filename, keyword, category, source (`gpt` or `fallback`), and archive status
-* Real-time search queries hit `/api/documents?q=` for large datasets
-
-### 🤖 GPT Assistant Chat *(Optional)*
-
-* Natural-language commands: rename, summarize, move, delete, categorize, archive
-* `/api/query` endpoint to ask questions of document text via OpenAI
-* “Cache all pages” support for deep document reading
-* Fallback mode for indexing when GPT is disabled or quota is exceeded
-
-### 🧠 Smart Metadata Indexing
-
-* SQLite-backed DB (`documents`, `thumbnails`, `conflicts` tables)
-* Tracks filename, path, summary, keywords, source, token usage, timestamps
-* Thumbnail generation for quick previews
-* Orphan cleanup to sync DB with folder state
+- **File-type icons & fallbacks**  
+  - Font Awesome icons for `.txt`, `.docx`, and PDF fallback if no thumbnail.  
+  - Uniform 200 px slot ensures consistent card size.
 
 ---
 
-## 🛠️ Setup & Running
+## 📦 Requirements
 
-1. **Clone & install**
-
-   ```bash
-   git clone https://github.com/yourname/gpt_docmaster.git
-   cd gpt_docmaster
-   python -m venv venv
-   source venv/bin/activate  # or venv\Scripts\activate on Windows
-   pip install -r requirements.txt
-   ```
-
-2. **Create `.env`**
-
-   ```ini
-   WATCH_FOLDER=\\mothership\\File Cabinet\\watch_folder
-   ARCHIVE_FOLDER=\\mothership\\File Cabinet\\scanned_organized
-   OPENAI_API_KEY=your_openai_api_key
-   ```
-
-3. **Initialize DB**
-
-   ```bash
-   python handler.py  # creates tables
-   ```
-
-4. **Start services**
-
-   * Terminal 1: `python watcher.py`  (folder watcher)
-   * Terminal 2: `python app.py`      (Flask web server)
-
-5. **Open** [http://localhost:5000](http://localhost:5000) in your browser
+- Python 3.10+  
+- Install dependencies:
+  ```bash
+  pip install -r requirements.txt
+  ```
+  Dependencies:
+  - Flask  
+  - watchdog  
+  - SQLAlchemy  
+  - python-dotenv  
+  - PyMuPDF  
+  - Pillow  
+  - python-docx
 
 ---
 
-## ✅ Completed
+## ⚙️ Configuration
 
-* Folder watcher with create/delete handling and orphan cleanup
-* SQLite DB and inspection script (`db_inspect.py`)
-* Flask API:
+Create a `.env` file in the project root:
 
-  * `/api/documents` (searchable list)
-  * `/stream` (SSE live updates)
-* Web UI:
-
-  * Grid/list toggle, single search box
-  * Live creation/deletion via Server-Sent Events
-
-## 🚧 In Progress
-
-* GPT Query integration (`/api/query`, `extract_text` utilities)
-* Front-end chat panel to ask document questions
-* Responsive CSS and mobile layout improvements
-
-## 🐛 Known Issues
-
-* Duplicate search inputs on the page; need to remove extra markup
-* Thumbnail 404s on special-character filenames—consider URL-encoding or slugify
-* Some CSS tags unclosed causing script to be inside header
-
-## 📝 Next Steps
-
-1. **UI Cleanup**: remove duplicate search bar; ensure proper HTML structure
-2. **GPT Query Backend**: finalize `extract_text(path)`, secure `/api/query`
-3. **Chat Interface**: build chat pane, wire card clicks to queries
-4. **Styling & UX**: mobile breakpoints, loading indicators, error messages
-5. **Deployment**: Dockerize & deploy to Synology NAS or DigitalOcean
+```env
+WATCH_FOLDER=/path/to/watch
+STORAGE_FOLDER=/path/to/archive
+PORT=5000
+FLASK_ENV=development
+# (Optional) OPENAI_API_KEY=your_key_here
+```
 
 ---
 
-*Last updated: May 13, 2025*
+## 🚀 Getting Started
+
+Clone the repo:
+
+```bash
+git clone https://github.com/your-org/gpt_docmaster.git
+cd gpt_docmaster
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Initialize the database:
+
+```bash
+python database.py
+```
+
+Start the folder watcher:
+
+```bash
+python watcher.py
+```
+
+In a second terminal, start the web UI:
+
+```bash
+python app.py
+```
+
+Visit [http://localhost:5000](http://localhost:5000) in your browser.
+
+---
+
+## 🗂 Project Structure
+
+```
+gpt_docmaster/
+├── .env
+├── .gitignore
+├── README.md
+├── ON_THE_NEXT_EPISODE.md
+├── requirements.txt
+├── database.py
+├── handler.py
+├── watcher.py
+├── app.py
+├── event_queue.py
+├── templates/
+│   └── index.html
+├── static/
+│   ├── style.css
+│   └── thumbnails/
+│       └── *.png
+└── docs/        ← documentation, if added
+```
+
+---
+
+## ⚠️ Known Issues & Limitations
+
+- No GPT integration yet (fallback mode only).
+- File serving: View/Download buttons open `/static/docs/…` but there is no `static/docs/` folder by default.
+- Size metadata (`size_readable`) is currently a placeholder.
+- Mobile responsiveness and error handling (spinners, toast messages) are not implemented.
+
+
+---
+
+## 🤝 Contributing
+
+Please read `ON_THE_NEXT_EPISODE.md` for planned work and cleanup tasks.  
+Feel free to open issues or PRs!
